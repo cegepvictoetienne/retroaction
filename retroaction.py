@@ -101,7 +101,7 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             if valeur_critere_brut is None:
                 valeur_critere = " "
             else:
-                valeur_critere = valeur_critere_brut
+                valeur_critere = str(valeur_critere_brut)
 
         # Faire le traitement de texte large pour les commentaires seulement
         if titre_critere == LIBELLE_COMMENTAIRES:
