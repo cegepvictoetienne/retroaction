@@ -111,7 +111,7 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             pdf.set_font('Arial', 'B', 12)
             pdf.cell(4, 0.3, titre_critere, bordure, 0, 'L')
 
-            if valeur_critere == "X":
+            if valeur_critere in ("x", "X"):
                 valeur_critere = CROCHET
                 pdf.set_font(CROCHET_POLICE, 'B', CROCHET_TAILLE)
 
