@@ -30,6 +30,8 @@ LIBELLE_NOM = "Nom"
 LIBELLE_PRENOM = "Prénom"
 LIBELLE_COMMENTAIRES = "Commentaires"
 
+HAUTEUR_CELLULE = 0.3
+
 def affiche_aide():
     """
         Affiche l'aide pour la commande.
@@ -105,20 +107,46 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
 
         # Faire le traitement de texte large pour les commentaires seulement
         if titre_critere == LIBELLE_COMMENTAIRES:
-            pdf.cell(4, 0.3, titre_critere, 1, 0, 'L')
-            pdf.multi_cell(4, 0.3, valeur_critere, 1)
+            pdf.cell(4, HAUTEUR_CELLULE, titre_critere, 1, 0, 'L')
+            pdf.multi_cell(4, HAUTEUR_CELLULE, valeur_critere, 1)
+
         else:
             pdf.set_font('Arial', 'B', 12)
-            pdf.cell(4, 0.3, titre_critere, bordure, 0, 'L')
+
+            # Si titre du critère est trop long, l'afficher sur plusieurs lignes
+            if len(titre_critere) > 45:
+                pdf_x = pdf.get_x()
+                pdf_y = pdf.get_y()
+                pdf.multi_cell(4, HAUTEUR_CELLULE, titre_critere, 1, 1, 'L')
+                pdf_y_apres = pdf.get_y()
+
+                # Ajuster la hauteur de la cellule de la valeur pour être identique
+                # à la cellule du titre
+
+                # Si la hauteur provoque un changement de page, positionner après
+                if pdf_y_apres < pdf_y:
+                    pdf.set_xy(pdf_x + 4, pdf_y_apres - HAUTEUR_CELLULE)
+                    hauteur = HAUTEUR_CELLULE
+                else:
+                    pdf.set_xy(pdf_x + 4, pdf_y)
+                    hauteur = pdf_y_apres - pdf_y
+            else:
+                pdf.cell(4, HAUTEUR_CELLULE, titre_critere, bordure, 0, 'L')
+                hauteur = HAUTEUR_CELLULE
 
             if valeur_critere in ("x", "X"):
                 valeur_critere = CROCHET
                 pdf.set_font(CROCHET_POLICE, 'B', CROCHET_TAILLE)
 
-            pdf.cell(4, 0.3, valeur_critere, bordure, 1, 'C')
+            pdf.cell(4, hauteur, valeur_critere, bordure, 1, 'C')
 
     # Écrire le PDF sur disque
-    pdf.output(nom_pdf, 'F')
+    try:
+        pdf.output(nom_pdf, 'F')
+    except UnicodeEncodeError as erreur:
+        print("Une erreur d'encodage du PDF lors de l'écriture du PDF suivant : ")
+        print(nom_pdf)
+        print(erreur)
 
     return nom_pdf
 
