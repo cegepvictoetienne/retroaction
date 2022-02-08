@@ -29,6 +29,7 @@ LIBELLE_NOTES = "Notes"
 LIBELLE_NOM = "Nom"
 LIBELLE_PRENOM = "Prénom"
 LIBELLE_COMMENTAIRES = "Commentaires"
+LIBELLE_SELECTION = "Générer"
 
 HAUTEUR_CELLULE = 0.3
 
@@ -88,6 +89,10 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             titre_critere = " "
             # Si le champ est vide, ne pas afficher la bordure
             bordure = 0
+
+        # Ne pas imprimer le champs de sélection
+        if titre_critere == LIBELLE_SELECTION:
+            continue
 
         # Générer la valeur du critère
         valeur_critere_brut = feuille_a_traiter.cell(
@@ -167,7 +172,8 @@ def trouver_lignes_criteres(feuille_a_traiter):
         LIBELLE_NOM : 0,
         LIBELLE_PRENOM : 0,
         LIBELLE_DA : 0,
-        LIBELLE_NOTES : 0
+        LIBELLE_NOTES : 0,
+        LIBELLE_SELECTION : 0
         }
 
     # Trouver la ligne correspondante aux critères
@@ -232,7 +238,7 @@ def sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, den
 
     chiffrier.save(filename=f"{dossier_sortie}/{nom_feuille_a_traiter}.xlsx")
 
-def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur):
+def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur, traitement_partiel):
     """
         Traiter tous les élèves d'une feuille Excel.
 
@@ -246,6 +252,8 @@ def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, 
             Le nom de la feuille Excel qui contient les rétroactions à traiter pour l'élève.
         denominateur : int
             Le dénominateur de la note totale
+        traitement_partiel : bool
+            Si vrai, ne traiter que les enregistrements sélectionnés
     """
 
     # data_only=True pour avoir le résultat des formules...
@@ -259,17 +267,27 @@ def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, 
         if feuille_a_traiter.cell(column=1, row=ligne).value == LIBELLE_DA:
             ligne_da = ligne
 
+    # Trouver la ligne correspondante à la sélection partielle
+    ligne_selection = 0
+    for ligne in range(1, feuille_a_traiter.max_row + 1):
+        if feuille_a_traiter.cell(column=1, row=ligne).value == LIBELLE_SELECTION:
+            ligne_selection = ligne
+
     # Créer le fichier ZIP
     nom_zip = os.path.join(dossier_sortie, "travaux.zip")
     with ZipFile(nom_zip, "w") as fichier_zip:
         # Traiter chaque étudiant
         print(f"Création des fiches de rétroaction pour {feuille_a_traiter.max_column - 1} élèves")
         for colonne in range(2, feuille_a_traiter.max_column + 1):
-            numero_da = feuille_a_traiter.cell(column=colonne, row=ligne_da).value
-            fichier_zip.write(
-                traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, colonne),
-                f"{numero_da}.pdf"
-                )
+            if not traitement_partiel or (
+            traitement_partiel
+            and ligne_selection > 0
+            and feuille_a_traiter.cell(column=colonne, row=ligne_selection).value == "x"):
+                numero_da = feuille_a_traiter.cell(column=colonne, row=ligne_da).value
+                fichier_zip.write(
+                    traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, colonne),
+                    f"{numero_da}.pdf"
+                    )
 
         fichier_zip.close()
 
@@ -346,11 +364,12 @@ def main(argv):
     dossier_sortie = ''
     nom_feuille_a_traiter = ''
     denominateur = 0
+    traitement_partiel = False
 
     currentdir = os.getcwd()
 
     try:
-        opts, _ = getopt.getopt(argv,"hi:o:s:d:")
+        opts, _ = getopt.getopt(argv,"phi:o:s:d:")
     except getopt.GetoptError:
         affiche_aide()
         sys.exit(2)
@@ -366,13 +385,15 @@ def main(argv):
             nom_feuille_a_traiter = arg
         elif opt == '-d':
             denominateur = int(arg)
+        elif opt == '-p':
+            traitement_partiel = True
 
     if valider_parametres(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur):
         print(f'Fichier d\'entrée est : "{fichier_retroaction}"')
         print(f'Dossier de sortie est : "{dossier_sortie}"')
         print(f'Nom de la feuille est "{nom_feuille_a_traiter}"')
         print(f'La note est sur : {denominateur}')
-        traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur)
+        traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur, traitement_partiel)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
