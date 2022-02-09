@@ -39,13 +39,14 @@ def affiche_aide():
     """
 
     print("")
-    print("""
-    retroaction.py -i <fichier_retro> -o <dossier_sortie> -s <nom_feuille> -d <denominateur>
+    print(f"""
+    retroaction.py -i <fichier_retro> -o <dossier_sortie> -s <nom_feuille> -d <denominateur> -p
 
     -i : Le chiffrier Excel contenant les rétroactions aux élèves. Chaque élément de la grille d'évaluation est en ligne et chaque élève est une colonne. Relatif au répertoire courant.
     -o : Le dossier dans lequel seront créés les pdf et l'archive zip.  Relatif au répertoire courant.
     -s : Le nom de la feuille contenant les rétroactions aux élèves.
     -d : Le dénominateur de la note de l'évaluation.
+    -p : Exécution partielle avec une sélection en utilisant le critère {LIBELLE_SELECTION}
     """)
 
 def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, colonne_a_traiter):
@@ -110,40 +111,24 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             else:
                 valeur_critere = str(valeur_critere_brut)
 
-        # Faire le traitement de texte large pour les commentaires seulement
-        if titre_critere == LIBELLE_COMMENTAIRES:
-            pdf.cell(4, HAUTEUR_CELLULE, titre_critere, 1, 0, 'L')
-            pdf.multi_cell(4, HAUTEUR_CELLULE, valeur_critere, 1)
+        pdf.set_font('Arial', 'B', 12)
 
-        else:
-            pdf.set_font('Arial', 'B', 12)
+        old_position = {
+            "x" : pdf.get_x(),
+            "y" : pdf.get_y()
+        }
 
-            # Si titre du critère est trop long, l'afficher sur plusieurs lignes
-            if len(titre_critere) > 45:
-                pdf_x = pdf.get_x()
-                pdf_y = pdf.get_y()
-                pdf.multi_cell(4, HAUTEUR_CELLULE, titre_critere, 1, 1, 'L')
-                pdf_y_apres = pdf.get_y()
+        pdf.multi_cell(4, HAUTEUR_CELLULE, titre_critere, bordure, 1, 'L')
 
-                # Ajuster la hauteur de la cellule de la valeur pour être identique
-                # à la cellule du titre
+        # Ajuster la hauteur de la cellule de la valeur pour être identique
+        # à la cellule du titre
+        pdf.set_xy(old_position["x"] + 4, pdf.get_y() - HAUTEUR_CELLULE)
 
-                # Si la hauteur provoque un changement de page, positionner après
-                if pdf_y_apres < pdf_y:
-                    pdf.set_xy(pdf_x + 4, pdf_y_apres - HAUTEUR_CELLULE)
-                    hauteur = HAUTEUR_CELLULE
-                else:
-                    pdf.set_xy(pdf_x + 4, pdf_y)
-                    hauteur = pdf_y_apres - pdf_y
-            else:
-                pdf.cell(4, HAUTEUR_CELLULE, titre_critere, bordure, 0, 'L')
-                hauteur = HAUTEUR_CELLULE
+        if valeur_critere in ("x", "X"):
+            valeur_critere = CROCHET
+            pdf.set_font(CROCHET_POLICE, 'B', CROCHET_TAILLE)
 
-            if valeur_critere in ("x", "X"):
-                valeur_critere = CROCHET
-                pdf.set_font(CROCHET_POLICE, 'B', CROCHET_TAILLE)
-
-            pdf.cell(4, hauteur, valeur_critere, bordure, 1, 'C')
+        pdf.multi_cell(4, HAUTEUR_CELLULE, valeur_critere, bordure, 1, 'L')
 
     # Écrire le PDF sur disque
     try:
@@ -238,7 +223,8 @@ def sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, den
 
     chiffrier.save(filename=f"{dossier_sortie}/{nom_feuille_a_traiter}.xlsx")
 
-def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur, traitement_partiel):
+def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter,
+    denominateur, traitement_partiel):
     """
         Traiter tous les élèves d'une feuille Excel.
 
@@ -285,7 +271,8 @@ def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, 
             and feuille_a_traiter.cell(column=colonne, row=ligne_selection).value == "x"):
                 numero_da = feuille_a_traiter.cell(column=colonne, row=ligne_da).value
                 fichier_zip.write(
-                    traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, colonne),
+                    traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter,
+                        denominateur, colonne),
                     f"{numero_da}.pdf"
                     )
 
@@ -393,7 +380,8 @@ def main(argv):
         print(f'Dossier de sortie est : "{dossier_sortie}"')
         print(f'Nom de la feuille est "{nom_feuille_a_traiter}"')
         print(f'La note est sur : {denominateur}')
-        traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur, traitement_partiel)
+        traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter,
+            denominateur, traitement_partiel)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
