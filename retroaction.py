@@ -18,6 +18,7 @@ import openpyxl
 from fpdf import FPDF
 
 # Constantes
+POLICE = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSans.ttf"
 
 # Quel est le caractère qui remplace le X pour indiquer que le critère est atteint
 CROCHET = chr(214)
@@ -76,9 +77,11 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
     nom_pdf = f"{dossier_sortie}/{numero_da}.pdf"
 
     # Créer le PDF
-    pdf = FPDF('P', 'in', 'Letter')
+    pdf = FPDF(orientation="P", unit="in", format="Letter")
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 12)
+    pdf.add_font('DejaVuSans', fname=POLICE, uni=True)
+    pdf.set_font('DejaVuSans', size=12)
+    pdf.set_fill_color(r=255, g=255, b=255)
 
     # Traiter tous les critères de correction pour l'élève
     for ligne in range(1, feuille_a_traiter.max_row + 1):
@@ -111,7 +114,7 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             else:
                 valeur_critere = str(valeur_critere_brut)
 
-        pdf.set_font('Arial', 'B', 12)
+        pdf.set_font('DejaVuSans', size=12)
 
         old_position = {
             "x" : pdf.get_x(),
@@ -126,10 +129,10 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
 
         if valeur_critere in ("x", "X"):
             valeur_critere = CROCHET
-            pdf.set_font(CROCHET_POLICE, 'B', CROCHET_TAILLE)
+            pdf.set_font(CROCHET_POLICE, '', CROCHET_TAILLE)
 
-        pdf.multi_cell(4, HAUTEUR_CELLULE, valeur_critere, bordure, 1, 'L')
-
+        pdf.multi_cell(4, HAUTEUR_CELLULE, valeur_critere, bordure, 1, 'C')
+        pdf.ln(0.001)
     # Écrire le PDF sur disque
     try:
         pdf.output(nom_pdf, 'F')
