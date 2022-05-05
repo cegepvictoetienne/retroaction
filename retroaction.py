@@ -16,10 +16,12 @@ from zipfile import ZipFile
 
 import openpyxl
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
+
 
 # Constantes
 POLICE = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSans.ttf"
-POLICE_BOLD = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSans-Bold.ttf"
+POLICE_BOLD = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSansB.ttf"
 
 # Quel est le caractère qui remplace le X pour indiquer que le critère est atteint
 CROCHET = chr(214)
@@ -34,6 +36,8 @@ LIBELLE_COMMENTAIRES = "Commentaires"
 LIBELLE_SELECTION = "Générer"
 
 HAUTEUR_CELLULE = 0.3
+LARGEUR_TITRE = 6
+LARGEUR_VALEUR = 2
 
 def affiche_aide():
     """
@@ -80,8 +84,8 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
     # Créer le PDF
     pdf = FPDF(orientation="P", unit="in", format="Letter")
     pdf.add_page()
-    pdf.add_font('DejaVuSans', fname=POLICE, uni=True)
-    pdf.add_font('DejaVuSansB', fname=POLICE_BOLD, uni=True)
+    pdf.add_font('DejaVuSans', fname=POLICE)
+    pdf.add_font(family='DejaVuSans', style='B', fname=POLICE_BOLD)
     pdf.set_font('DejaVuSans', size=12)
     pdf.set_fill_color(r=255, g=255, b=255)
 
@@ -118,7 +122,7 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
 
         pdf.set_font('DejaVuSans', size=12)
 
-        if pdf.will_page_break(HAUTEUR_CELLULE*3):
+        if pdf.will_page_break(HAUTEUR_CELLULE*2):
             pdf.add_page()
 
         old_position = {
@@ -126,23 +130,40 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
             "y" : pdf.get_y()
         }
 
-        pdf.multi_cell(4, HAUTEUR_CELLULE, titre_critere, bordure, 1, 'L')
+        pdf.multi_cell(
+            w=LARGEUR_TITRE, 
+            h=HAUTEUR_CELLULE, 
+            txt=titre_critere, 
+            border=bordure, 
+            align='L', 
+            new_x=XPos.RIGHT, 
+            new_y=YPos.NEXT, 
+            markdown=True
+            )
 
         hauteur_valeur = pdf.get_y() - old_position["y"]
-
+   
         # Ajuster la hauteur de la cellule de la valeur pour être identique
         # à la cellule du titre
-        pdf.set_xy(old_position["x"] + 4, old_position["y"])
+        pdf.set_xy(old_position["x"] + LARGEUR_TITRE, old_position["y"])
 
         if valeur_critere in ("x", "X"):
             valeur_critere = CROCHET
             pdf.set_font(CROCHET_POLICE, '', CROCHET_TAILLE)
 
-        pdf.multi_cell(4, hauteur_valeur, valeur_critere, bordure, 1, 'C')
+        pdf.multi_cell(
+            w=LARGEUR_VALEUR, 
+            h=hauteur_valeur, 
+            txt=valeur_critere, 
+            border=bordure, 
+            align='C', 
+            new_x=XPos.LEFT, 
+            new_y=YPos.NEXT
+            )
         pdf.ln(0.001)
     # Écrire le PDF sur disque
     try:
-        pdf.output(nom_pdf, 'F')
+        pdf.output(name=nom_pdf)
     except UnicodeEncodeError as erreur:
         print("Une erreur d'encodage du PDF lors de l'écriture du PDF suivant : ")
         print(nom_pdf)
