@@ -11,6 +11,8 @@ import getopt
 import os
 import sys
 
+from pathlib import Path
+
 from zipfile import BadZipFile
 from zipfile import ZipFile
 
@@ -18,10 +20,7 @@ import openpyxl
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 
-
 # Constantes
-POLICE = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSans.ttf"
-POLICE_BOLD = r"/Users/etiennerivard/Dropbox/Python/font/DejaVuSansB.ttf"
 
 # Quel est le caractère qui remplace le X pour indiquer que le critère est atteint
 CROCHET = chr(214)
@@ -38,6 +37,219 @@ LIBELLE_SELECTION = "Générer"
 HAUTEUR_CELLULE = 0.3
 LARGEUR_TITRE = 6
 LARGEUR_VALEUR = 2
+DOSSIER_SCRIPT = Path( __file__ ).parent.absolute()
+CHEMIN_LOGO = os.path.join(DOSSIER_SCRIPT, "logo.png")
+CHEMIN_POLICE_REGULIER = os.path.join(DOSSIER_SCRIPT, "SourceSansPro-Regular.ttf")
+CHEMIN_POLICE_GRAS = os.path.join(DOSSIER_SCRIPT, "SourceSansPro-Bold.ttf")
+NOM_POLICE = "SourceSansPro"
+
+
+class Eleve:
+    """
+        Classe contenant les données de l'élève et de ses résultats
+    """
+    def __init__(self, numero_da="0", prenom="", nom="", note=0):
+        """
+            Initialiser les données de l'élève.
+
+            Paramètres
+            ----------
+            numero_da : str
+                Numéro du dossier d'admission de l'élève
+            prenom : str
+                Prénom de l'élève
+            nom : str
+                Nom de famille de l'élève
+            note : float
+                Note finale de l'élève
+        """
+        self.prenom = prenom
+        self.nom = nom
+        self.note = note
+        self.denominateur = 1
+        self.commentaires = ""
+        self.numero_da = numero_da
+        self.notes = []
+
+    def ajout_note(self, titre, valeur):
+        """
+            Ajouter une note à l'élève.
+
+            Paramètres
+            ----------
+            titre : str
+                Titre du critère évalué
+            valeur : str
+                Valeur du critère évalué
+        """
+        self.notes.append((titre, valeur))
+
+    def nom_pdf(self):
+        """
+            Renvoyer le nom du fichier PDF pour l'élève.
+        """
+        return self.numero_da + ".pdf"
+
+    def echec(self):
+        """
+            Renvoyer True si l'élève a echoué.
+        """
+        return self.note / self.denominateur < 0.6
+
+    def afficher_note(self):
+        """
+            Afficher la note de l'élève.
+        """
+        return f"{self.note} / {self.denominateur} ({self.note_sur_100()} %)"
+
+    def note_sur_100(self):
+        """
+            Renvoyer la note de l'élève sur 100.
+        """
+        return self.note / self.denominateur * 100
+
+
+class FeuilleEvaluation(FPDF):
+    """
+    Générer la page d'évaluation
+    """
+    def __init__(self, titre):
+        """
+            Initialiser la page d'évaluation
+
+            Paramètres
+            ----------
+            titre : str
+                Titre de la page
+        """
+        self.titre = titre
+
+        super().__init__(orientation='P', unit='in', format="Letter")
+        self.add_font(NOM_POLICE, fname=CHEMIN_POLICE_REGULIER)
+        self.add_font(family=NOM_POLICE, style='B', fname=CHEMIN_POLICE_GRAS)
+
+
+    def changer_police(self):
+        """
+        Changer la police de la page
+        """
+        self.set_font(NOM_POLICE, size=12)
+
+    def changer_police_crochet(self):
+        """
+        Changer la police du crochet
+        """
+        self.set_font(CROCHET_POLICE, '', CROCHET_TAILLE)
+
+    def header(self):
+        """
+        Générer l'entête de page
+        """
+        # Ajouter le logo du Cégep de Victoriaville
+        self.image(CHEMIN_LOGO, 0, 0, 2)
+
+        self.set_font(NOM_POLICE, 'B', 16)
+        # Déplacer le curseur à droite
+        self.cell(0.3)
+        # Centrer le titre de la page
+
+        self.cell(
+            w=7,
+            h=0.8,
+            txt=self.titre,
+            border=0,
+            align='C',
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+            markdown=True
+            )
+
+
+    def footer(self):
+        """
+        Générer le pied de page
+        """
+        # Positionner le curseur à 1" du bas de page:
+        self.set_y(-1)
+        self.set_font(NOM_POLICE, 'B', 11)
+        # Imprimer le numéro de page
+        self.cell(
+            w=7,
+            h=HAUTEUR_CELLULE,
+            txt=f"Page {self.page_no()} / {{nb}}",
+            border=0,
+            align='C',
+            new_x=XPos.RIGHT,
+            new_y=YPos.TOP,
+            markdown=True
+            )
+
+
+    def ajouter_critere(self, titre_critere, valeur_critere):
+        """
+        Ajouter un critère à la page
+
+        Paramètres
+        ----------
+        titre_critere : str
+            Titre du critère
+        valeur_critere : str
+            Valeur du critère
+        """
+
+         # Générer le titre du critère, si pas de titre, pas de bordure
+        bordure = 1
+        if titre_critere == " ":
+            # Si le champ est vide, ne pas afficher la bordure
+            bordure = 0
+
+        if valeur_critere is None:
+            valeur_critere = " "
+        else:
+            valeur_critere = str(valeur_critere)
+
+        if self.will_page_break(HAUTEUR_CELLULE*2):
+            self.add_page()
+
+        self.changer_police()
+
+        old_position = {
+            "x" : self.get_x(),
+            "y" : self.get_y()
+        }
+
+        self.multi_cell(
+            w=LARGEUR_TITRE,
+            h=HAUTEUR_CELLULE,
+            txt=titre_critere,
+            border=bordure,
+            align='L',
+            new_x=XPos.RIGHT,
+            new_y=YPos.NEXT,
+            markdown=True
+            )
+
+        hauteur_valeur = self.get_y() - old_position["y"]
+
+        # Ajuster la hauteur de la cellule de la valeur pour être identique
+        # à la cellule du titre
+        self.set_xy(old_position["x"] + LARGEUR_TITRE, old_position["y"])
+
+        if valeur_critere in ("x", "X"):
+            valeur_critere = CROCHET
+            self.changer_police_crochet()
+
+        self.multi_cell(
+            w=LARGEUR_VALEUR,
+            h=hauteur_valeur,
+            txt=valeur_critere,
+            border=bordure,
+            align='C',
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+            )
+
+
 
 def affiche_aide():
     """
@@ -55,7 +267,7 @@ def affiche_aide():
     -p : Exécution partielle avec une sélection en utilisant le critère {LIBELLE_SELECTION}
     """)
 
-def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, colonne_a_traiter):
+def traiter_eleve(dossier_sortie, eleve, titre_feuille):
     """
         Créer le PDF pour un élève.
 
@@ -63,105 +275,33 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
         ----------
         dossier_sortie : str
             Chemin sur disque du dossier qui recevra le PDF
-        numéro_da : str
-            Le numéro de DA à utiliser dans le nom du PDF
-        feuille_a_traiter : objet data_sheet
-            La feuille Excel qui contient les rétroactions à traiter pour l'élève.
-        denominateur : int
-            Le dénominateur de la note totale
-        colonne_a_traiter : int
-            L'index de la colonne de la feuille Excel qui contient le détail pour l'élève
-
+        eleve : Eleve
+            Objet représentant un élève
+        titre_feuille : str
+            Titre du document généré
         Retour
         ------
         nom_pdf : str
             Le nom du pdf créé
     """
-
-    # Générer le nom du PDF
-    nom_pdf = f"{dossier_sortie}/{numero_da}.pdf"
-
     # Créer le PDF
-    pdf = FPDF(orientation="P", unit="in", format="Letter")
+    pdf = FeuilleEvaluation(titre_feuille)
     pdf.add_page()
-    pdf.add_font('DejaVuSans', fname=POLICE)
-    pdf.add_font(family='DejaVuSans', style='B', fname=POLICE_BOLD)
-    pdf.set_font('DejaVuSans', size=12)
     pdf.set_fill_color(r=255, g=255, b=255)
 
+    # Imprimer les informations de l'élève
+    pdf.ajouter_critere(LIBELLE_DA, eleve.numero_da)
+    pdf.ajouter_critere(LIBELLE_NOM, eleve.nom)
+    pdf.ajouter_critere(LIBELLE_PRENOM, eleve.prenom)
+    pdf.ajouter_critere(LIBELLE_NOTES, eleve.afficher_note())
+    pdf.ajouter_critere(LIBELLE_COMMENTAIRES, eleve.commentaires)
+
     # Traiter tous les critères de correction pour l'élève
-    for ligne in range(1, feuille_a_traiter.max_row + 1):
+    for ligne in eleve.notes:
+        pdf.ajouter_critere(ligne[0], ligne[1])
 
-        # Générer le titre du critère, si pas de titre, pas de bordure
-        bordure = 1
-        titre_critere = feuille_a_traiter.cell(column=1, row=ligne).value
-        if titre_critere is None:
-            titre_critere = " "
-            # Si le champ est vide, ne pas afficher la bordure
-            bordure = 0
-
-        # Ne pas imprimer le champs de sélection
-        if titre_critere == LIBELLE_SELECTION:
-            continue
-
-        # Générer la valeur du critère
-        valeur_critere_brut = feuille_a_traiter.cell(
-            column=colonne_a_traiter,
-            row=ligne).value
-
-        # Afficher la note avec son dénominateur
-        if titre_critere == LIBELLE_NOTES:
-            # Calculer sur 100
-            sur_100 = round(int(valeur_critere_brut) / denominateur * 100)
-            valeur_critere = f"{valeur_critere_brut} / {denominateur} ({sur_100} %)"
-        else:
-            if valeur_critere_brut is None:
-                valeur_critere = " "
-            else:
-                valeur_critere = str(valeur_critere_brut)
-
-        pdf.set_font('DejaVuSans', size=12)
-
-        if pdf.will_page_break(HAUTEUR_CELLULE*2):
-            pdf.add_page()
-
-        old_position = {
-            "x" : pdf.get_x(),
-            "y" : pdf.get_y()
-        }
-
-        pdf.multi_cell(
-            w=LARGEUR_TITRE, 
-            h=HAUTEUR_CELLULE, 
-            txt=titre_critere, 
-            border=bordure, 
-            align='L', 
-            new_x=XPos.RIGHT, 
-            new_y=YPos.NEXT, 
-            markdown=True
-            )
-
-        hauteur_valeur = pdf.get_y() - old_position["y"]
-   
-        # Ajuster la hauteur de la cellule de la valeur pour être identique
-        # à la cellule du titre
-        pdf.set_xy(old_position["x"] + LARGEUR_TITRE, old_position["y"])
-
-        if valeur_critere in ("x", "X"):
-            valeur_critere = CROCHET
-            pdf.set_font(CROCHET_POLICE, '', CROCHET_TAILLE)
-
-        pdf.multi_cell(
-            w=LARGEUR_VALEUR, 
-            h=hauteur_valeur, 
-            txt=valeur_critere, 
-            border=bordure, 
-            align='C', 
-            new_x=XPos.LEFT, 
-            new_y=YPos.NEXT
-            )
-        pdf.ln(0.001)
     # Écrire le PDF sur disque
+    nom_pdf = os.path.join(dossier_sortie, eleve.nom_pdf())
     try:
         pdf.output(name=nom_pdf)
     except UnicodeEncodeError as erreur:
@@ -170,6 +310,7 @@ def traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter, denominateur, co
         print(erreur)
 
     return nom_pdf
+
 
 def trouver_lignes_criteres(feuille_a_traiter):
     """
@@ -189,7 +330,8 @@ def trouver_lignes_criteres(feuille_a_traiter):
         LIBELLE_PRENOM : 0,
         LIBELLE_DA : 0,
         LIBELLE_NOTES : 0,
-        LIBELLE_SELECTION : 0
+        LIBELLE_SELECTION : 0,
+        LIBELLE_COMMENTAIRES : 0,
         }
 
     # Trouver la ligne correspondante aux critères
@@ -199,7 +341,8 @@ def trouver_lignes_criteres(feuille_a_traiter):
                 criteres[cle] = ligne
     return criteres
 
-def sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, denominateur):
+
+def sommaire_notes(eleves, dossier_sortie, denominateur, nom_feuille_a_traiter):
     """
         Écrire un chiffrier Excel avec la liste des DA et des notes
 
@@ -214,8 +357,6 @@ def sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, den
         denominateur : int
             Le dénominateur de la note totale
     """
-    # Définir les critères à transférer
-    criteres = trouver_lignes_criteres(feuille_a_traiter)
 
     # Créer le chiffrier
     chiffrier = openpyxl.Workbook()
@@ -229,88 +370,114 @@ def sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, den
     feuille.cell(row=1, column=5).value = 'Note sur 100'
     feuille.cell(row=1, column=6).value = 'Échec'
 
-
-    # Traiter chaque étudiant
-    for etudiant in range(2, feuille_a_traiter.max_column + 1):
-        colonne = 0
-        for _, valeur in criteres.items():
-            colonne = colonne + 1
-            feuille.cell(row=etudiant, column=colonne).value = (
-              feuille_a_traiter.cell(column=etudiant, row=valeur).value
-              )
-
-        # Calculer la note sur 100
-        colonne = colonne + 1
-        sur_100 = (
-          int(feuille_a_traiter.cell(column=etudiant, row=criteres[LIBELLE_NOTES]).value) /
-          denominateur * 100
-          )
-        feuille.cell(row=etudiant, column=colonne).value = sur_100
-
-        # Indiquer si l'élève est en situation d'échec
-        colonne = colonne + 1
-        if sur_100 < 60:
-            feuille.cell(row=etudiant, column=colonne).value = "Échec"
+    ligne = 1
+    for eleve in eleves:
+        # Écrire les informations de l'élève
+        ligne += 1
+        feuille.cell(row=ligne, column=1).value = eleve.nom
+        feuille.cell(row=ligne, column=2).value = eleve.prenom
+        feuille.cell(row=ligne, column=3).value = eleve.numero_da
+        feuille.cell(row=ligne, column=4).value = eleve.note
+        feuille.cell(row=ligne, column=5).value = eleve.note_sur_100()
+        feuille.cell(row=ligne, column=6).value = "Echec" if eleve.echec() else ""
 
     chiffrier.save(filename=f"{dossier_sortie}/{nom_feuille_a_traiter}.xlsx")
 
-def traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter,
-    denominateur, traitement_partiel):
+
+def generer_liste_eleves(fichier_retroaction,
+                        nom_feuille_a_traiter,
+                        denominateur,
+                        traitement_partiel):
     """
-        Traiter tous les élèves d'une feuille Excel.
+        Désérialisation du chiffrier Excel en une liste d'objets de type Eleve
 
         Paramètres
         ----------
         fichier_retroaction : str
-            Nom et chemin du chiffrier Excel contenant les rétroactions
-        dossier_sortie : str
-            Chemin sur disque du dossier qui recevra le PDF
+            Chemin du fichier Excel qui contient les rétroactions à traiter.
         nom_feuille_a_traiter : str
             Le nom de la feuille Excel qui contient les rétroactions à traiter pour l'élève.
         denominateur : int
             Le dénominateur de la note totale
         traitement_partiel : bool
-            Si vrai, ne traiter que les enregistrements sélectionnés
+            True si on doit traiter les rétroactions partiellement, False sinon.
     """
-
-    # data_only=True pour avoir le résultat des formules...
+    # Ouvrir le chiffrier
     chiffrier = openpyxl.load_workbook(fichier_retroaction, data_only=True)
+    feuille = chiffrier[nom_feuille_a_traiter]
 
-    feuille_a_traiter = chiffrier[nom_feuille_a_traiter]
+    # Définir les critères à transférer
+    criteres = trouver_lignes_criteres(feuille)
 
-    # Trouver la ligne correspondante au DA
-    ligne_da = 0
-    for ligne in range(1, feuille_a_traiter.max_row + 1):
-        if feuille_a_traiter.cell(column=1, row=ligne).value == LIBELLE_DA:
-            ligne_da = ligne
+    # Créer la liste des élèves
+    eleves = []
 
-    # Trouver la ligne correspondante à la sélection partielle
-    ligne_selection = 0
-    for ligne in range(1, feuille_a_traiter.max_row + 1):
-        if feuille_a_traiter.cell(column=1, row=ligne).value == LIBELLE_SELECTION:
-            ligne_selection = ligne
+    # Traiter chaque étudiant
+    for etudiant in range(2, feuille.max_column + 1):
+        # Vérifier si le traitement partiel sélectionné est activé
+        if (traitement_partiel and
+            feuille.cell(column=etudiant, row=criteres[LIBELLE_SELECTION]).value != "X"):
+            continue
 
+        # Créer un objet élève
+        eleve = Eleve()
+
+        # Définir les valeurs
+        eleve.nom = feuille.cell(column=etudiant, row=criteres[LIBELLE_NOM]).value
+        eleve.prenom = feuille.cell(column=etudiant, row=criteres[LIBELLE_PRENOM]).value
+        eleve.numero_da = feuille.cell(column=etudiant, row=criteres[LIBELLE_DA]).value
+        eleve.note = int(feuille.cell(column=etudiant, row=criteres[LIBELLE_NOTES]).value)
+        eleve.commentaires = feuille.cell(column=etudiant, row=criteres[LIBELLE_SELECTION]).value
+        eleve.denominateur = denominateur
+
+        for element in range(criteres[LIBELLE_PRENOM] + 1, feuille.max_row + 1):
+
+            titre_critere = feuille.cell(column=1, row=element).value
+            if titre_critere is None:
+                titre_critere = " "
+
+            valeur_critere = feuille.cell(column=etudiant, row=element).value
+            if valeur_critere is None:
+                valeur_critere = " "
+
+            eleve.ajout_note(titre_critere, valeur_critere)
+
+        # Ajouter l'élève à la liste
+        eleves.append(eleve)
+
+    chiffrier.close()
+    # Retourner la liste des élèves
+    return eleves
+
+
+def traiter_eleves(eleves, dossier_sortie, titre_feuille):
+    """
+    Traiter tous les élèves de la liste
+
+    Paramètres
+    ----------
+    eleves : list
+        La liste des élèves à traiter
+
+    dossier_sortie : str
+        Chemin du dossier qui recevra les fichiers PDF
+
+    titre_feuille : str
+        Le titre de la feuille Excel qui contient les rétroactions à traiter pour l'élève.
+    """
     # Créer le fichier ZIP
     nom_zip = os.path.join(dossier_sortie, "travaux.zip")
     with ZipFile(nom_zip, "w") as fichier_zip:
         # Traiter chaque étudiant
-        print(f"Création des fiches de rétroaction pour {feuille_a_traiter.max_column - 1} élèves")
-        for colonne in range(2, feuille_a_traiter.max_column + 1):
-            if not traitement_partiel or (
-            traitement_partiel
-            and ligne_selection > 0
-            and feuille_a_traiter.cell(column=colonne, row=ligne_selection).value == "x"):
-                numero_da = feuille_a_traiter.cell(column=colonne, row=ligne_da).value
-                fichier_zip.write(
-                    traiter_eleve(dossier_sortie, numero_da, feuille_a_traiter,
-                        denominateur, colonne),
-                    f"{numero_da}.pdf"
+        print(f"Création des fiches de rétroaction pour {len(eleves)} élève(s)")
+        for eleve in eleves:
+            fichier_zip.write(
+                traiter_eleve(dossier_sortie, eleve, titre_feuille),
+                    eleve.nom_pdf()
                     )
 
         fichier_zip.close()
 
-    print("Création du chiffrier de sommaire des notes")
-    sommaire_notes(feuille_a_traiter, dossier_sortie, nom_feuille_a_traiter, denominateur)
 
 def valider_parametres(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter, denominateur):
     """
@@ -373,6 +540,7 @@ def valider_parametres(fichier_retroaction, dossier_sortie, nom_feuille_a_traite
 
     return parametres_valides
 
+
 def main(argv):
     """
         Procédure principale
@@ -383,11 +551,12 @@ def main(argv):
     nom_feuille_a_traiter = ''
     denominateur = 0
     traitement_partiel = False
+    titre_feuille = ""
 
     currentdir = os.getcwd()
 
     try:
-        opts, _ = getopt.getopt(argv,"phi:o:s:d:")
+        opts, _ = getopt.getopt(argv,"phi:o:s:d:t:")
     except getopt.GetoptError:
         affiche_aide()
         sys.exit(2)
@@ -401,6 +570,8 @@ def main(argv):
             dossier_sortie = os.path.join(currentdir, arg)
         elif opt == '-s':
             nom_feuille_a_traiter = arg
+        elif opt == '-t':
+            titre_feuille = arg
         elif opt == '-d':
             denominateur = int(arg)
         elif opt == '-p':
@@ -410,9 +581,16 @@ def main(argv):
         print(f'Fichier d\'entrée est : "{fichier_retroaction}"')
         print(f'Dossier de sortie est : "{dossier_sortie}"')
         print(f'Nom de la feuille est "{nom_feuille_a_traiter}"')
+        if traitement_partiel:
+            print("Traitement partiel")
+        else:
+            print("Traitement complet")
         print(f'La note est sur : {denominateur}')
-        traiter_feuille(fichier_retroaction, dossier_sortie, nom_feuille_a_traiter,
+        eleves = generer_liste_eleves(fichier_retroaction, nom_feuille_a_traiter,
             denominateur, traitement_partiel)
+        traiter_eleves(eleves, dossier_sortie, titre_feuille)
+        sommaire_notes(eleves, dossier_sortie, denominateur, nom_feuille_a_traiter)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
