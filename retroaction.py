@@ -1,4 +1,4 @@
-#!/Library/Frameworks/Python.framework/Versions/3.9/bin/python3
+#!/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 """
  Générateur de rétroaction pour les élèves.
 
@@ -427,7 +427,7 @@ def generer_liste_eleves(fichier_retroaction,
         eleve.prenom = feuille.cell(column=etudiant, row=criteres[LIBELLE_PRENOM]).value
         eleve.numero_da = feuille.cell(column=etudiant, row=criteres[LIBELLE_DA]).value
         eleve.note = int(feuille.cell(column=etudiant, row=criteres[LIBELLE_NOTES]).value)
-        eleve.commentaires = feuille.cell(column=etudiant, row=criteres[LIBELLE_SELECTION]).value
+        eleve.commentaires = feuille.cell(column=etudiant, row=criteres[LIBELLE_COMMENTAIRES]).value
         eleve.denominateur = denominateur
 
         for element in range(criteres[LIBELLE_PRENOM] + 1, feuille.max_row + 1):
