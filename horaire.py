@@ -1,4 +1,4 @@
-#!/Library/Frameworks/Python.framework/Versions/3.9/bin/python3
+#!/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 """
 Création d'un chiffrier d'horaire pour PowerAutomate.
 """

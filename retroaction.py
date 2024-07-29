@@ -425,7 +425,7 @@ def generer_liste_eleves(fichier_retroaction,
         # Définir les valeurs
         eleve.nom = feuille.cell(column=etudiant, row=criteres[LIBELLE_NOM]).value
         eleve.prenom = feuille.cell(column=etudiant, row=criteres[LIBELLE_PRENOM]).value
-        eleve.numero_da = feuille.cell(column=etudiant, row=criteres[LIBELLE_DA]).value
+        eleve.numero_da = str(feuille.cell(column=etudiant, row=criteres[LIBELLE_DA]).value)
         eleve.note = int(feuille.cell(column=etudiant, row=criteres[LIBELLE_NOTES]).value)
         eleve.commentaires = feuille.cell(column=etudiant, row=criteres[LIBELLE_COMMENTAIRES]).value
         eleve.denominateur = denominateur
