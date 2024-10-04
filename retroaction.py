@@ -16,9 +16,9 @@ from pathlib import Path
 from zipfile import BadZipFile
 from zipfile import ZipFile
 
-import openpyxl
-from fpdf import FPDF
-from fpdf.enums import XPos, YPos
+import openpyxl # type: ignore
+from fpdf import FPDF # type: ignore
+from fpdf.enums import XPos, YPos # type: ignore
 
 # Constantes
 
@@ -106,7 +106,7 @@ class Eleve:
         """
             Renvoyer la note de l'élève sur 100.
         """
-        return self.note / self.denominateur * 100
+        return round(self.note / self.denominateur * 100)
 
 
 class FeuilleEvaluation(FPDF):
@@ -249,6 +249,54 @@ class FeuilleEvaluation(FPDF):
             new_y=YPos.NEXT,
             )
 
+    def ajouter_commentaire(self, titre, texte):
+        """
+        Ajouter un commentaire à la page
+
+        Paramètres
+        ----------
+        titre : str
+            Titre du commentaire
+        texte : str
+            Texte du commentaire
+        """
+
+        
+        bordure = 1
+        largeur_totale = LARGEUR_TITRE + LARGEUR_VALEUR
+
+        if texte is None:
+            valeur_critere = " "
+        else:
+            valeur_critere = str(texte)
+
+        if self.will_page_break(HAUTEUR_CELLULE*2):
+            self.add_page()
+
+        self.changer_police()
+
+        self.multi_cell(
+            w=largeur_totale,
+            h=HAUTEUR_CELLULE,
+            txt=titre,
+            border=bordure,
+            align='L',
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+            markdown=True
+            )
+
+        self.multi_cell(
+            w=largeur_totale,
+            h=HAUTEUR_CELLULE,
+            txt=valeur_critere,
+            border=bordure,
+            align='L',
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+            markdown=True
+            )
+
 
 
 def affiche_aide():
@@ -294,11 +342,15 @@ def traiter_eleve(dossier_sortie, eleve, titre_feuille):
     pdf.ajouter_critere(LIBELLE_NOM, eleve.nom)
     pdf.ajouter_critere(LIBELLE_PRENOM, eleve.prenom)
     pdf.ajouter_critere(LIBELLE_NOTES, eleve.afficher_note())
-    pdf.ajouter_critere(LIBELLE_COMMENTAIRES, eleve.commentaires)
+    pdf.ajouter_commentaire(LIBELLE_COMMENTAIRES, eleve.commentaires)
 
     # Traiter tous les critères de correction pour l'élève
     for ligne in eleve.notes:
-        pdf.ajouter_critere(ligne[0], ligne[1])
+        if '{texte}' in ligne[0]:
+            titre = ligne[0].replace('{texte}', '')
+            pdf.ajouter_commentaire(titre, ligne[1])
+        else:
+            pdf.ajouter_critere(ligne[0], ligne[1])
 
     # Écrire le PDF sur disque
     nom_pdf = os.path.join(dossier_sortie, eleve.nom_pdf())

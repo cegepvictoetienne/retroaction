@@ -7,7 +7,7 @@ import os
 import datetime
 import sys
 from zipfile import BadZipFile
-import openpyxl
+import openpyxl # type: ignore
 
 def affiche_aide():
     """
