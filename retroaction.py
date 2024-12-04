@@ -592,7 +592,56 @@ def valider_parametres(fichier_retroaction, dossier_sortie, nom_feuille_a_traite
 
     return parametres_valides
 
+def mode_interactif():
+    """
+        Mode interactif
+    """
+    # Get a list of all files in the current directory
+    files_in_directory = os.listdir('.')
 
+    # Filter only files with .xlsx or .xls extensions
+    fichiers_excel_dossier_courant = [file for file in files_in_directory if file.endswith(('.xlsx', '.xls'))]
+
+    print("Rétroaction à partir de quel fichier?" )
+    print("")
+    for index, fichier in enumerate(fichiers_excel_dossier_courant):
+        print(f'{index} - {fichier}')
+
+    choix_fichier = int(input("?"))
+
+    fichier_choisi = fichiers_excel_dossier_courant[choix_fichier]
+    print(f'Fichier choisi : {fichier_choisi}')
+
+    chiffrier = openpyxl.load_workbook(fichier_choisi, data_only=True)
+
+    print("Rétroaction à partir de quel feuille?" )
+    print("")
+    for index, feuille in enumerate(chiffrier.worksheets):
+        print(f'{index} - {feuille}')
+
+    choix_feuille = int(input("?"))
+
+    feuille_choisie = chiffrier.worksheets[choix_feuille].title
+    print(f'Feuille choisie : {feuille_choisie}')
+
+    print("Rétroaction dans quel dossier?" )
+    print("")
+
+    dossier = input("?")
+
+    print("Dénominateur?" )
+    print("")
+
+    denominateur = int(input("?"))
+
+    eleves = generer_liste_eleves(fichier_choisi, feuille_choisie,
+    denominateur, False)
+    traiter_eleves(eleves, dossier, feuille_choisie)
+    sommaire_notes(eleves, dossier, denominateur, feuille_choisie)
+
+
+
+    
 def main(argv):
     """
         Procédure principale
@@ -612,6 +661,9 @@ def main(argv):
     except getopt.GetoptError:
         affiche_aide()
         sys.exit(2)
+    if len(opts) == 0:
+        mode_interactif()
+        return
     for opt, arg in opts:
         if opt == '-h':
             affiche_aide()
